@@ -1,0 +1,32 @@
+Creating an appropriate Conda environment on MacOS ARM64
+
+On Mac:
+conda create -n compmatmul doxygen cmake clang clangxx libcxx llvm-openmp catch2 pybind11 numpy
+
+With FFTW:
+conda create -n compmatmul-fftw doxygen cmake clang clangxx libcxx llvm-openmp catch2 fftw pybind11 numpy
+
+On Linux:
+conda create -n compmatmul doxygen cmake clang clangxx clangxx_linux-64 libcxx libcxxabi llvm-openmp catch2 mkl mkl-devel pybind11 numpy
+conda install numpy "libblas=*=*_mkl"
+
+With FFTW:
+conda create -n compmatmul-fftw doxygen cmake clang clangxx libcxx libcxxabi catch2 mkl mkl-devel fftw libgomp pybind11 numpy
+
+For building documentation:
+cmake --build build --target docs
+
+
+Installing FXT:
+1. Download https://www.jjj.de/fxt/fxt-2026.05.19.tar.gz
+2. make install PREFIX=${CONDA_PREFIX}
+
+
+
+Importing the Python module with asan enabled:
+On Mac:
+ASAN_LIB="$(clang++ -print-file-name=libclang_rt.asan_osx_dynamic.dylib)"
+DYLD_INSERT_LIBRARIES="$ASAN_LIB" python3 -c 'import compmatmul'
+
+On Linux:
+LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so) PYTHONMALLOC=malloc PYTHONPATH=. python3 ../tests.py
