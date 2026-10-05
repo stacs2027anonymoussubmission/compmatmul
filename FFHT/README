@@ -1,0 +1,5 @@
+This is the FFHT library, parts cloned from https://github.com/falconn-lib/ffht.
+
+This does not contain everything, only the necessary bits for compmatmul.
+
+License information is under LICENSE.md.

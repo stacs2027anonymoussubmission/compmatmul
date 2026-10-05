@@ -1,0 +1,116 @@
+Bootstrap: docker
+From: condaforge/miniforge3:26.3.2-3
+
+%labels
+	Author Anonymous
+	Description "Apptainer image definition for compressed matrix multiplication"
+
+%help
+    Compressed matrix multiplication built with the following options:
+    BLAS_BACKEND={{BLAS_BACKEND}}
+    FFT_BACKEND={{FFT_BACKEND}}
+    FWHT_BACKEND={{FWHT_BACKEND}}
+    ARCH={{ARCH}}
+    TUNE={{TUNE}}
+    CPU={{CPU}}
+
+%arguments
+    BLAS_BACKEND=Generic
+    FFT_BACKEND=None
+    FWHT_BACKEND=None
+    ARCH=native
+    TUNE=native
+    CPU=native
+
+%environment
+#	export PATH="/opt/conda/bin:${PATH}"
+
+%files
+    CMakeLists.txt /build/
+    libarray /build/libarray
+    compmatmul.cpp /build/
+    fft.hpp /build/
+    fwht.hpp /build/
+    hashing.hpp /build/
+    matmul_fft.hpp /build/
+    matmul_fwht.hpp /build/
+    matmul.hpp /build/
+    util.hpp /build/
+    tests.cpp /build/
+    benchmark.cpp /build/
+    multiply.cpp /build/
+    synthetic.cpp /build/
+    FFHT /build/FFHT
+    tclap /build/tclap
+    cnpy /build/cnpy
+
+%post
+    BLAS_BACKEND={{BLAS_BACKEND}}
+    FFT_BACKEND={{FFT_BACKEND}}
+    FWHT_BACKEND={{FWHT_BACKEND}}
+    ARCH={{ARCH}}
+    TUNE={{TUNE}}
+    CPU={{CPU}}
+
+    case "${BLAS_BACKEND}" in
+        Generic|MKL|Accelerate|OpenBLAS|AOCL|ARMPL)
+            echo "Using BLAS backend: ${BLAS_BACKEND}"
+            ;;
+        *)
+            echo "ERROR: Invalid BLAS_BACKEND '${BLAS_BACKEND}'"
+            echo "Valid values are: Generic, MKL, Accelerate, OpenBLAS, AOCL, ARMPL"
+            exit 1
+            ;;
+    esac
+
+    . /opt/conda/etc/profile.d/conda.sh
+    conda activate
+
+    conda install make cmake clang clangxx clangxx_linux-64 \
+        llvm-openmp libgomp catch2 pybind11 pytest scipy zlib \
+        'libstdcxx>=16.2.*' \
+        'libstdcxx-devel_linux-64>=16.2.*'
+    
+    if [ "${BLAS_BACKEND}" = "MKL"  ]
+    then
+        conda install mkl mkl-devel numpy "libblas=*=*_mkl" threadpoolctl
+    fi
+
+    if [ "${FFT_BACKEND}" = "FFTW" ]
+    then
+        conda install fftw
+    fi
+
+    cd /build
+
+    if [ "${FWHT_BACKEND}" = "FXT" ]
+    then
+        wget https://www.jjj.de/fxt/fxt-2026.05.19.tar.gz
+        tar xvf fxt-2026.05.19.tar.gz
+        cd fxt
+        sed -i 's/^#FXT_CXXFLAGS += -DHAVE_AMD64_POPCNT$/FXT_CXXFLAGS += -DHAVE_AMD64_POPCNT/' makefile
+        make
+        make install
+        cd ..
+    fi
+
+    if [ `uname -m` = "x86_64" ]
+    then
+        cmake -DCMAKE_BUILD_TYPE=Release \
+            -DARCH=${ARCH} \
+            -DTUNE=${TUNE} \
+            -DBLAS_BACKEND=${BLAS_BACKEND} \
+            -DFFT_BACKEND=${FFT_BACKEND} \
+            -DFWHT_BACKEND=${FWHT_BACKEND} \
+            .
+    else
+        echo "Non-x86_64 architectures are not supported by this image, sorry."
+    fi
+
+    make
+    make install
+
+
+%runscript
+#	exec "$@"
+
